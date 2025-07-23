@@ -4,8 +4,35 @@ import amiAnimation from '../assets/ami.json';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { toast } from 'react-toastify';
 
-const questions = [/* same as before */];
+// ✅ Define your questions array
+const questions = [
+  {
+    id: 1,
+    text: {
+      en: "How are you feeling today?",
+      hi: "आज आप कैसा महसूस कर रहे हैं?"
+    },
+    options: ["😊", "😢", "😠", "😨"]
+  },
+  {
+    id: 2,
+    text: {
+      en: "Can you say 'Hello' loudly?",
+      hi: "क्या आप ज़ोर से 'हैलो' कह सकते हैं?"
+    },
+    options: []
+  },
+  {
+    id: 3,
+    text: {
+      en: "Which one is a fruit?",
+      hi: "इनमें से फल कौन सा है?"
+    },
+    options: ["🍎", "🚗", "🧸", "👟"]
+  }
+];
 
 export default function VoiceBuddy() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -37,25 +64,31 @@ export default function VoiceBuddy() {
     }
   }, [currentQuestion, language]);
 
+  // ✅ Add 1 star in Firebase
   const updateStarsInFirestore = async () => {
+    if (!docId) {
+      console.warn("❗ No child ID provided. Please login again.");
+      return;
+    }
+
     try {
-      const userRef = doc(db, 'users', docId);
+      const userRef = doc(db, "users", docId);
       const userSnap = await getDoc(userRef);
+
       if (userSnap.exists()) {
-        const existingStars = userSnap.data()?.stars || 0;
-        await updateDoc(userRef, {
-          stars: existingStars + stars,
-        });
-        console.log('⭐ Rewards updated in Firestore!');
+        const prevStars = userSnap.data().stars || 0;
+        await updateDoc(userRef, { stars: prevStars + 1 });
+        console.log("⭐ Star added! Total:", prevStars + 1);
       }
     } catch (error) {
-      console.error('Error updating rewards:', error);
+      console.error("Error updating stars in Firestore:", error);
     }
   };
 
-  const handleAnswer = (answer) => {
+  const handleAnswer = async (answer) => {
     setAnswers([...answers, { questionId: questions[currentQuestion].id, answer }]);
     setStars((s) => s + 1);
+    await updateStarsInFirestore(); // ✅ Push star for each correct/attempted question
 
     if (currentQuestion < questions.length - 1) {
       setTimeout(() => {
@@ -64,7 +97,7 @@ export default function VoiceBuddy() {
     } else {
       speak(language === 'hi' ? "शाबाश! आपने बहुत अच्छा किया!" : "Yay! You did amazing!");
       setSubmitted(true);
-      updateStarsInFirestore(); // 🟡 Push stars after last question
+      toast.success(language === 'hi' ? "⭐ सितारे जोड़ दिए गए!" : "⭐ Stars added to your rewards!");
     }
   };
 
@@ -123,12 +156,12 @@ export default function VoiceBuddy() {
           </button>
         ) : (
           <p className="text-green-600 font-semibold text-lg mt-4">
-            {language === 'hi' ? "आपके सितारे जोड़ दिए गए हैं!" : "Stars added to your rewards!"}
+            {language === 'hi' ? "⭐ आपके सितारे जोड़ दिए गए हैं!" : "⭐ Stars added to your rewards!"}
           </p>
         )}
       </div>
 
-      {/* Stars */}
+      {/* Stars Counter */}
       <div className="mt-4 text-purple-700 font-semibold">
         ⭐ {language === 'hi' ? 'एक्टिविटी पॉइंट्स' : 'Stars Collected'}: {stars}
       </div>
@@ -138,7 +171,7 @@ export default function VoiceBuddy() {
         onClick={() => navigate('/')}
         className="mt-6 text-purple-600 hover:underline"
       >
-        ⬅️ {language === 'hi' ? 'मुख्य पृष्ठ पर वापस जाएं' : 'Back to Home'}
+         {language === 'hi' ? '' : ''}
       </button>
     </div>
   );

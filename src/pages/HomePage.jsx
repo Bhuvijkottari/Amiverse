@@ -22,7 +22,7 @@ const themes = {
     message: 'Time to splash in the Ocean! 🐬🫧🪼',
   },
   Space: {
-    bg: 'bg-gradient-to-br from-gray-900 via-purple-900 to-black text-white',
+    bg: 'bg-gradient-to-br from-gray-900 via-purple-900 to-black text',
     message: 'Ready for a space mission? 🚀🪐',
   },
 };
@@ -232,15 +232,15 @@ export default function HomePage() {
         </div>
 
         {/* Progress Overview */}
-        <div className="mt-4 bg-white/70 rounded-xl p-4 shadow">
-          <h2 className="text-purple-800 font-semibold text-lg mb-2">Your Progress:</h2>
-          <ul className="text-sm text-gray-700 space-y-1">
-            <li>🎤 Voice Buddy: {progress.voiceBuddy || 0} ⭐</li>
-            <li>🧠 Emotion Game: {progress.emotionGame || 0} ⭐</li>
-            <li>🧩 Routine Puzzle: {progress.routinePuzzle || 0} ⭐</li>
-          </ul>
-        </div>
+        
       </div>
+      <footer className="mt-10 text-center text-sm text-[#4B5563] font-medium bg-[#f3f4f7] py-4 rounded-md shadow-sm">
+  © {new Date().getFullYear()} <span className="text-[#2563EB] font-semibold">AmiVerse</span>. All rights reserved.
+</footer>
+
+
     </div>
+   
+    
   );
 }

@@ -5,10 +5,16 @@ import amiAnimation from "../assets/ami.json";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
 } from "firebase/auth";
-import { getDoc, setDoc, doc, query, where, getDocs, collection } from "firebase/firestore";
+import {
+  getDoc,
+  setDoc,
+  doc,
+  query,
+  where,
+  getDocs,
+  collection,
+} from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 export default function LoginPage() {
@@ -44,6 +50,14 @@ export default function LoginPage() {
     }
 
     try {
+       const usersRef = collection(db, "users");
+    const pinQuery = query(usersRef, where("parentPin", "==", parentPin));
+    const querySnapshot = await getDocs(pinQuery);
+
+    if (!querySnapshot.empty) {
+      setError("Parent PIN already exists, please choose another");
+      return;
+    }
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCred.user.uid;
 
@@ -58,9 +72,9 @@ export default function LoginPage() {
           stars: 0,
           stickers: 0,
         },
+        features: {},
       });
 
-      // Also save the parent PIN in a separate collection for fast lookup
       await setDoc(doc(db, "parentPins", parentPin), {
         uid,
         name,
@@ -75,78 +89,36 @@ export default function LoginPage() {
     }
   };
 
- const handleLogin = async (e) => {
-  e.preventDefault();
-  setError("");
-
-  try {
-   if (role === "parent") {
-  const q = query(collection(db, "users"), where("parentPin", "==", parentPin));
-  const querySnapshot = await getDocs(q);
-
-  if (querySnapshot.empty) {
-    setError("Invalid PIN");
-    return;
-  }
-
-  localStorage.setItem("parentPin", parentPin); // ✅ Save PIN for later access
-  navigate("/parentdashboard");
-
-
-    } else {
-      // 👶 Child login with email & password
-      const userCred = await signInWithEmailAndPassword(auth, email, password);
-      const docSnap = await getDoc(doc(db, "users", userCred.user.uid));
-      const userData = docSnap.data();
-
-      navigate("/homepage", {
-  state: {
-    name: userData.name,
-    docId: userCred.user.uid, // ✅ correct docId for use in HomePage
-  },
-});
-
-    }
-  } catch (err) {
-    setError("Login failed: " + err.message);
-  }
-};
-
-
-  const handleGoogleSignIn = async () => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
     setError("");
-    const provider = new GoogleAuthProvider();
+
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const uid = user.uid;
+      if (role === "parent") {
+        const q = query(collection(db, "users"), where("parentPin", "==", parentPin));
+        const querySnapshot = await getDocs(q);
 
-      const userRef = doc(db, "users", uid);
-      const snap = await getDoc(userRef);
+        if (querySnapshot.empty) {
+          setError("Invalid PIN");
+          return;
+        }
 
-      if (!snap.exists()) {
-        await setDoc(userRef, {
-          uid,
-          name: user.displayName,
-          email: user.email,
-          age: "",
-          role: "child",
-          parentPin: "",
-          rewards: {
-            stars: 0,
-            stickers: 0,
+        localStorage.setItem("parentPin", parentPin);
+        navigate("/parentdashboard");
+      } else {
+        const userCred = await signInWithEmailAndPassword(auth, email, password);
+        const docSnap = await getDoc(doc(db, "users", userCred.user.uid));
+        const userData = docSnap.data();
+
+        navigate("/homepage", {
+          state: {
+            name: userData.name,
+            docId: userCred.user.uid,
           },
         });
       }
-     navigate("/homepage", {
-  state: {
-    name: userData.name,
-    docId: uid, // ✅ correct docId for use in HomePage
-  },
-});
-
     } catch (err) {
-      setError("Google login failed");
+      setError("Login failed: " + err.message);
     }
   };
 
@@ -208,20 +180,6 @@ export default function LoginPage() {
         >
           {isRegister ? "✅ Register" : "➡️ Login"}
         </button>
-
-        {!isRegister && role === "child" && (
-          <button
-            onClick={handleGoogleSignIn}
-            className="bg-white border border-purple-400 text-purple-700 py-2 w-full rounded-full flex items-center justify-center gap-2"
-          >
-            <img
-              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-              alt="google"
-              className="w-5 h-5"
-            />
-            Sign in with Google
-          </button>
-        )}
 
         <button
           onClick={() => setIsRegister(!isRegister)}

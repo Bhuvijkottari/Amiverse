@@ -16,7 +16,7 @@
   left: 20px;
   border-width: 10px 10px 0;
   border-style: solid;
-  border-color: white transparent transparent transparent;
+  border-color: rgb(192, 65, 65) transparent transparent transparent;
 }
 @keyframes floatUp {
   0% {
@@ -28,4 +28,83 @@
 }
 .animate-float-up {
   animation: floatUp 3s ease-in-out infinite alternate;
+}
+/* ✅ Global mobile responsiveness for all pages */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Arial', sans-serif;
+  background-color: #e5e8eb;
+}
+
+/* Responsive container */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* Responsive headings */
+h1, h2, h3, h4 {
+  font-size: clamp(1.2rem, 5vw, 2rem);
+  text-align: center;
+}
+
+/* Responsive buttons */
+button {
+  font-size: clamp(1rem, 4vw, 1.2rem);
+  padding: 12px 20px;
+  border: none;
+  border-radius: 12px;
+  background-color: #4caf50;
+  color: rgb(197, 76, 76);
+  cursor: pointer;
+  transition: 0.3s;
+  margin: 5px;
+}
+
+button:hover {
+  background-color: #388e3c;
+}
+
+/* Flexbox responsive */
+.flex {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Card style for reusable blocks */
+.card {
+  background: rgb(248, 245, 245);
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  margin: 10px;
+  width: 100%;
+  max-width: 300px;
+  text-align: center;
+}
+
+/* Media Queries for phones */
+@media (max-width: 768px) {
+  .container {
+    padding: 8px;
+  }
+
+  .flex {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .card {
+    width: 90%;
+  }
+
+  button {
+    width: 90%;
+    font-size: 1.1rem;
+  }
 }

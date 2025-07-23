@@ -9,6 +9,8 @@ import safeRoad from '../assets/safeRoad.png';
 import riskyRoad from '../assets/riskyRoad.png';
 import umbrella1 from '../assets/umbrella1.png';
 import umbrella2 from '../assets/umbrella2.png';
+import lonelyAnaya from '../assets/lonelyanaya.png';
+import happyAnaya from '../assets/happyanaya.png';
 
 const stories = {
   1: {
@@ -91,7 +93,27 @@ const stories = {
         ]
       }
     ]
-  }
+  },
+  4: {
+  scenes: [
+    {
+      text: "A new student, Anaya, joins the class. She looks nervous and sits alone.",
+      options: [
+        { label: '👋 Say hi', next: 1 },
+        { label: '🙈 Ignore and play with own friends', end: lonelyAnaya, moral: 'It’s nice to welcome new friends!' }
+      ]
+    },
+    {
+      text: "Anaya smiles when you greet her. She still seems a little shy.",
+      options: [
+        { label: '🤝 Invite her to play', end: happyAnaya, moral: 'Being friendly makes everyone feel included.' },
+        { label: '😶 Leave her again', end: lonelyAnaya, moral: 'She felt left out. Let’s try to be kind to new friends.' }
+      ]
+    }
+  ]
+}
+
+  
 };
 
 export default function StoryPlayer() {
@@ -128,13 +150,7 @@ export default function StoryPlayer() {
   if (!story) return <div className="p-6 text-center">Story not found!</div>;
 
   const currentScene = story.scenes[sceneIndex];
-  if (!docId) {
-    return (
-      <div className="text-center mt-10 text-red-600 font-bold">
-        ❗ No child ID provided. Please login again.
-      </div>
-    );
-  }
+ 
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-green-50 to-yellow-50 p-6 text-center">

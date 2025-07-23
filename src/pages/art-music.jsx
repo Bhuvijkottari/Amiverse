@@ -1,42 +1,32 @@
 import React, { useState, useRef, useEffect } from "react";
 import Lottie from "lottie-react";
-import amiAnimation from "../assets/ami.json";
-import { doc, updateDoc, increment } from "firebase/firestore";
-import { db } from "../firebase";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { useLocation } from "react-router-dom";
+import { toast } from "react-toastify";
+
+import amiAnimation from "../assets/ami.json";
+import { db } from "../firebase";
 
 import song1 from "../assets/song1.mp3";
 import song2 from "../assets/song2.mp3";
 import song3 from "../assets/song3.mp3";
 
-export default function ArtMusic({ docId }) {
-
+export default function ArtMusic() {
   const [mode, setMode] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [allDone, setAllDone] = useState(false);
   const [feedback, setFeedback] = useState("");
-const [brushSize, setBrushSize] = useState(4);
-
-const praises = [
-  "Wow! That’s amazing!",
-  "You’re a little artist!",
-  "Super job!",
-  "Your drawing made me smile!",
-  "Keep it up! You're doing great!",
-];
-
   const [brushColor, setBrushColor] = useState("#4b0082");
-
+  const [brushSize, setBrushSize] = useState(4);
   const canvasRef = useRef(null);
   const isDrawing = useRef(false);
 
-  // MUSIC
-  const [currentSong, setCurrentSong] = useState(0);
-  const audioRef = useRef(new Audio(song1));
-  const songs = [
-    { src: song1, title: "Calm Ukulele 🎸" },
-    { src: song2, title: "Soft Piano 🎹" },
-    { src: song3, title: "Joyful Claps 🥁" },
+  const praises = [
+    "Wow! That’s amazing!",
+    "You’re a little artist!",
+    "Super job!",
+    "Your drawing made me smile!",
+    "Keep it up! You're doing great!",
   ];
 
   const drawings = [
@@ -45,6 +35,18 @@ const praises = [
     { label: "Sun", emoji: "☀️" },
     { label: "Ball", emoji: "⚽" },
   ];
+
+  const songs = [
+    { src: song1, title: "Calm Ukulele 🎸" },
+    { src: song2, title: "Soft Piano 🎹" },
+    { src: song3, title: "Joyful Claps 🥁" },
+  ];
+
+  const [currentSong, setCurrentSong] = useState(0);
+  const audioRef = useRef(null);
+
+  const location = useLocation();
+  const docId = location.state?.docId;
 
   const speak = (text) => {
     window.speechSynthesis.cancel();
@@ -62,8 +64,7 @@ const praises = [
 
   const endDrawing = () => {
     isDrawing.current = false;
-    const ctx = canvasRef.current.getContext("2d");
-    ctx.beginPath();
+    canvasRef.current.getContext("2d").beginPath();
   };
 
   const draw = (e) => {
@@ -73,46 +74,59 @@ const praises = [
     const rect = canvas.getBoundingClientRect();
     const x = e.nativeEvent.clientX - rect.left;
     const y = e.nativeEvent.clientY - rect.top;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = brushSize;
     ctx.lineCap = "round";
     ctx.strokeStyle = brushColor;
     ctx.lineTo(x, y);
     ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineWidth = brushSize;
-
   };
-
-const handleDone = () => {
-  const praise = praises[Math.floor(Math.random() * praises.length)];
-  const message = `🎉 Yay! You drew a ${drawings[currentIndex].label}! ${praise}`;
-  setFeedback(message);
-  speak(message);
-
-  // ⭐ Reward after every drawing
-  giveStarReward();
-  
-
-
-  if (currentIndex < drawings.length - 1) {
-    setTimeout(() => {
-      setCurrentIndex(currentIndex + 1);
-      clearCanvas();
-      setFeedback("");
-    }, 4000);
-  } else {
-    setAllDone(true);
-    speak("Wow! You finished all your drawings! Great job!");
-  }
-};
-
-
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const handleDone = () => {
+    const praise = praises[Math.floor(Math.random() * praises.length)];
+    const message = `🎉 Yay! You drew a ${drawings[currentIndex].label}! ${praise}`;
+    setFeedback(message);
+    speak(message);
+    giveStarReward();
+
+    if (currentIndex < drawings.length - 1) {
+      setTimeout(() => {
+        setCurrentIndex(currentIndex + 1);
+        clearCanvas();
+        setFeedback("");
+      }, 4000);
+    } else {
+      setAllDone(true);
+      speak("Wow! You finished all your drawings! Great job!");
+    }
+  };
+
+  const giveStarReward = async () => {
+    if (!docId) {
+      console.warn("❗ No child ID provided. Please login again.");
+      return;
+    }
+
+    try {
+      const userRef = doc(db, "users", docId);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const prevStars = userSnap.data().stars || 0;
+        await updateDoc(userRef, { stars: prevStars + 1 });
+        toast.success("⭐ 1 Star added to your rewards!");
+        console.log("⭐ Star added! Total:", prevStars + 1);
+      }
+    } catch (err) {
+      console.error("Failed to update stars:", err);
+    }
   };
 
   const handleModeSelect = (selectedMode) => {
@@ -125,15 +139,12 @@ const handleDone = () => {
     }
   };
 
-  // 🎵 Music Controls
   const playSong = (index) => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
-    const newAudio = new Audio(songs[index].src);
-    newAudio.loop = false;
-    newAudio.play();
-    audioRef.current = newAudio;
+    stopMusic();
+    const audio = new Audio(songs[index].src);
+    audio.loop = false;
+    audio.play();
+    audioRef.current = audio;
   };
 
   const stopMusic = () => {
@@ -143,44 +154,23 @@ const handleDone = () => {
     }
   };
 
-  const nextSong = () => {
-    let next = (currentSong + 1) % songs.length;
-    setCurrentSong(next);
-    playSong(next);
-  };
-
   const pauseMusic = () => {
     if (audioRef.current) {
       audioRef.current.pause();
     }
   };
-  const giveStarReward = async () => {
-  if (!docId) {
-    console.error("❌ No docId passed to ArtMusic");
-    return;
-  }
 
-  try {
-    const userRef = doc(db, "users", docId);
-    await updateDoc(userRef, {
-      stars: increment(1),
-    });
-    toast.success("⭐ Stars added to your rewards!");
-    
-  } catch (error) {
-    console.error("Failed to update star reward:", error);
-  }
-};
+  const nextSong = () => {
+    const next = (currentSong + 1) % songs.length;
+    setCurrentSong(next);
+    playSong(next);
+  };
 
-
-
-  // 🔊 Stop music if user leaves page
   useEffect(() => {
-    return () => {
-      stopMusic();
-    };
+    return () => stopMusic();
   }, []);
-   if (!docId) {
+
+  if (!docId) {
     return (
       <div className="text-center mt-10 text-red-600 font-bold">
         ❗ No child ID provided. Please login again.
@@ -190,7 +180,7 @@ const handleDone = () => {
 
   return (
     <div className={`min-h-screen transition-all duration-500 ${mode === 'Music' ? 'bg-yellow-100' : 'bg-gradient-to-br from-blue-100 via-pink-100 to-purple-100'} flex flex-col items-center justify-center p-4`}>
-      {/* Ami */}
+      {/* Ami Animation */}
       <div className="w-32 mb-4">
         <Lottie animationData={amiAnimation} loop />
       </div>
@@ -207,12 +197,11 @@ const handleDone = () => {
 
       {mode === "Art" && !allDone && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mt-6">
-          {/* Target */}
           <div className="bg-white/80 border border-purple-300 rounded-xl p-4 flex flex-col items-center">
             <h3 className="text-lg font-semibold text-purple-700 mb-2">Draw this:</h3>
             <div className="text-6xl">{drawings[currentIndex].emoji}</div>
             <p className="mt-2 text-purple-600">{drawings[currentIndex].label}</p>
-            {/* Color Palette */}
+
             <div className="flex gap-2 mt-4">
               {["#4b0082", "#ff0000", "#00b894", "#f1c40f", "#000000"].map((color) => (
                 <button
@@ -220,25 +209,24 @@ const handleDone = () => {
                   onClick={() => setBrushColor(color)}
                   className="w-6 h-6 rounded-full border-2 border-gray-400"
                   style={{ backgroundColor: color }}
-                ></button>
+                />
+              ))}
+            </div>
+
+            <p className="mt-4 text-purple-700 font-medium">Select Brush Size:</p>
+            <div className="flex gap-2 mt-2">
+              {[2, 4, 8].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setBrushSize(size)}
+                  className="px-3 py-1 bg-purple-200 rounded-full text-sm hover:bg-purple-300"
+                >
+                  {size === 2 ? "Small" : size === 4 ? "Medium" : "Large"}
+                </button>
               ))}
             </div>
           </div>
-          <p className="mt-4 text-purple-700 font-medium">Select Brush Size:</p>
-<div className="flex gap-2 mt-2">
-  {[2, 4, 8].map((size) => (
-    <button
-      key={size}
-      onClick={() => setBrushSize(size)}
-      className="px-3 py-1 bg-purple-200 rounded-full text-sm hover:bg-purple-300"
-    >
-      {size === 2 ? "Small" : size === 4 ? "Medium" : "Large"}
-    </button>
-  ))}
-</div>
 
-
-          {/* Canvas */}
           <div className="bg-white/80 border border-purple-300 rounded-xl p-4">
             <canvas
               ref={canvasRef}

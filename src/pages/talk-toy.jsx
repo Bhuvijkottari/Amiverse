@@ -3,7 +3,6 @@ import Lottie from "lottie-react";
 import amiAnimation from "../assets/ami.json";
 import { speak } from "../utils/speak";
 
-
 const suggestions = [
   "You can ask me to sing a song.",
   "Try saying: Tell me a story.",
@@ -25,74 +24,50 @@ const suggestions = [
 
 const getSimpleResponse = (text) => {
   if (!text) return "Can you say something?";
-
   text = text.toLowerCase();
 
-  // Greetings
   if (text.includes("hello") || text.includes("hi")) return "Hi there! So happy to talk to you!";
   if (text.includes("good morning")) return "Good morning! Have a happy day!";
   if (text.includes("good night")) return "Good night! Sweet dreams!";
   if (text.includes("bye")) return "Goodbye! See you soon!";
   if (text.includes("how are you")) return "I'm great! I love playing with you!";
   if (text.includes("your name")) return "I'm Ami, your toy friend!";
-
-  // Fun
   if (text.includes("sing") || text.includes("song")) return "La la la! Twinkle twinkle little star!";
   if (text.includes("dance")) return "I love dancing! Wiggle wiggle!";
   if (text.includes("joke")) return "Why did the teddy bear say no to dessert? Because he was stuffed!";
   if (text.includes("story")) return "Once upon a time, there was a brave little bunny who loved adventures!";
   if (text.includes("clap")) return "Yay! Clap clap clap!";
   if (text.includes("laugh")) return "Ha ha ha! That is so funny!";
-
-  // Emotions
   if (text.includes("i am sad")) return "Oh no! I am here to cheer you up! Big hugs!";
   if (text.includes("i am happy")) return "Yay! I'm so happy you're happy!";
   if (text.includes("i am angry")) return "Take a deep breath... You will feel better soon.";
   if (text.includes("i am bored")) return "Let's play something fun together!";
   if (text.includes("i am tired")) return "Maybe a little rest will help.";
-
-  // Counting / Math
   if (text.includes("count to ten")) return "One, two, three, four, five, six, seven, eight, nine, ten!";
   if (text.includes("2 plus 2")) return "Two plus two is four!";
   if (text.includes("3 plus 5")) return "Three plus five is eight!";
   if (text.includes("10 minus 3")) return "Ten minus three is seven!";
   if (text.includes("math")) return "Math is fun! Ask me an addition or subtraction question!";
-
-  // Bedtime
   if (text.includes("bedtime") || text.includes("sleep")) return "It's time to rest. Snuggle up and have sweet dreams.";
-
-  // Weather
   if (text.includes("weather")) return "I hope it's sunny and nice today!";
-
-  // Colors
   if (text.includes("favorite color")) return "I love all colors, but pink is extra pretty!";
-
-  // Animals
   if (text.includes("favorite animal")) return "I like bunnies and puppies a lot!";
   if (text.includes("dog")) return "Woof woof! Dogs are so cute!";
   if (text.includes("cat")) return "Meow meow! Cats love to nap.";
-
-  // Encouragement
   if (text.includes("i love you")) return "I love you too! You are my best friend!";
   if (text.includes("you are my friend")) return "Yippee! Friends forever!";
   if (text.includes("hug")) return "Hugs for you! Squeeze!";
   if (text.includes("thank you")) return "You're very welcome!";
-
-  // Learning
   if (text.includes("alphabet")) return "A B C D E F G!";
   if (text.includes("numbers")) return "1 2 3 4 5 6 7 8 9 10!";
   if (text.includes("read")) return "Let's read a fun story together!";
   if (text.includes("help")) return "I can help you learn and play!";
   if (text.includes("game")) return "Let's play a fun game!";
-
-  // Instructions
   if (text.includes("what can you do")) return "I can sing, tell stories, count, and be your friend!";
   if (text.includes("tell me something")) return "Did you know? A group of bunnies is called a fluffle!";
-  if (text.includes("who made you")) return "I was made by two smart people adithya and bhuvi !";
+  if (text.includes("who made you")) return "I was made by two smart people Adithya and Bhuvi!";
   if (text.includes("favorite food")) return "I like pretend cookies the best!";
   if (text.includes("are you real")) return "I'm real in your heart!";
-
-  // Default
   return "Hmm, I can't help you with that. Try asking me to sing, tell a story, or play!";
 };
 
@@ -103,26 +78,8 @@ export default function TalkToToy() {
   const [loading, setLoading] = useState(false);
   const [input, setInput] = useState("");
 
-  const handleVoiceInput = async () => {
-    setLoading(true);
-    try {
-      const text = await listenToMic();
-      if (!text) throw new Error("No speech detected.");
-      addMessage("user", text);
-      handleResponse(text);
-    } catch (err) {
-      console.error(err);
-      speak("I could not hear you. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTextInput = () => {
-    if (!input.trim()) return;
-    addMessage("user", input.trim());
-    handleResponse(input.trim());
-    setInput("");
+  const addMessage = (from, text) => {
+    setMessages((prev) => [...prev, { from, text }]);
   };
 
   const handleResponse = (text) => {
@@ -133,17 +90,37 @@ export default function TalkToToy() {
     speak(fullReply);
   };
 
-  const addMessage = (from, text) => {
-    setMessages((prev) => [...prev, { from, text }]);
+  const handleTextInput = () => {
+    if (!input.trim()) return;
+    addMessage("user", input.trim());
+    handleResponse(input.trim());
+    setInput("");
+  };
+
+  const handleVoiceInput = async () => {
+    setLoading(true);
+    try {
+      const result = await listenToMic();
+      addMessage("user", result);
+      handleResponse(result);
+    } catch (err) {
+      console.error("Voice input error:", err);
+      speak("I couldn't hear you. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const listenToMic = () => {
     return new Promise((resolve, reject) => {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+
       if (!SpeechRecognition) {
         reject("Speech recognition not supported.");
         return;
       }
+
       const recognition = new SpeechRecognition();
       recognition.lang = "en-US";
       recognition.interimResults = false;
@@ -154,29 +131,22 @@ export default function TalkToToy() {
         resolve(transcript);
       };
 
-      recognition.onerror = (e) => {
-        console.error("Mic error", e);
-        reject("Mic error.");
+      recognition.onerror = (event) => {
+        reject(event.error);
       };
 
       recognition.start();
     });
   };
-  if (!docId) {
-    return (
-      <div className="text-center mt-10 text-red-600 font-bold">
-        ❗ No child ID provided. Please login again.
-      </div>
-    );
-  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 flex flex-col items-center p-4">
-      {/* Ami animation */}
+      {/* Animation */}
       <div className="w-40 mb-4">
         <Lottie animationData={amiAnimation} loop />
       </div>
 
-      {/* Chat box */}
+      {/* Messages */}
       <div className="w-full max-w-md bg-white/80 border border-purple-300 rounded-xl shadow-xl p-4 space-y-2 overflow-y-auto max-h-[60vh]">
         {messages.map((m, i) => (
           <div
@@ -196,7 +166,7 @@ export default function TalkToToy() {
         ))}
       </div>
 
-      {/* Input + Send */}
+      {/* Text input */}
       <div className="mt-4 flex gap-2 w-full max-w-md">
         <input
           value={input}
@@ -212,7 +182,7 @@ export default function TalkToToy() {
         </button>
       </div>
 
-      {/* Voice button */}
+      {/* Mic input */}
       <button
         onClick={handleVoiceInput}
         disabled={loading}

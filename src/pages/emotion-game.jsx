@@ -2,7 +2,13 @@ import React, { useEffect, useState } from 'react';
 import Lottie from 'lottie-react';
 import amiAnimation from '../assets/ami.json';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { toast } from "react-toastify";
 import { useLocation } from "react-router-dom";
+
+// ✅ Firebase imports
+import { db } from '../firebase'; // Make sure this points to your firebase.js config
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+
 export default function EmotionGame() {
   const emotions = [
     { label: 'Happy', emoji: '😊' },
@@ -18,8 +24,8 @@ export default function EmotionGame() {
   const [feedback, setFeedback] = useState('');
   const [stars, setStars] = useState(0);
   const [allDone, setAllDone] = useState(false);
-   const location = useLocation();
-    const docId = location.state?.docId;
+  const location = useLocation();
+  const docId = location.state?.docId;
 
   const speak = (text) => {
     window.speechSynthesis.cancel();
@@ -44,38 +50,45 @@ export default function EmotionGame() {
     return () => clearTimeout(timer);
   }, [currentIndex]);
 
-  const handleDone = () => {
+  // ✅ Save star to Firebase
+  const giveStarReward = async () => {
+    if (!docId) {
+      console.warn("❗ No child ID provided. Please login again.");
+      return;
+    }
+
+    try {
+      const userRef = doc(db, "users", docId);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const prevStars = userSnap.data().stars || 0;
+        await updateDoc(userRef, { stars: prevStars + 1 });
+        console.log("⭐ Star added! Total:", prevStars + 1);
+      }
+    } catch (error) {
+      console.error("Error updating stars:", error);
+    }
+  };
+
+  // ✅ Handle Done
+  const handleDone = async () => {
     setFeedback('🎉 Yay! Great job!');
     setStars((s) => s + 1);
+    await giveStarReward();
 
     if (currentIndex < emotions.length - 1) {
       setTimeout(() => {
-        setCurrentIndex(currentIndex + 1);
+        setCurrentIndex((prev) => prev + 1);
       }, 1500);
     } else {
       setAllDone(true);
       speak('Yay! You finished all the emotions! You did amazing!');
-      giveStarReward();
       toast.success("⭐ Stars added to your rewards!");
-
     }
   };
-  const giveStarReward = async () => {
+
   if (!docId) {
-    console.warn("❗ No child ID provided. Please login again.");
-    return;
-  }
-
-  const userRef = doc(db, "users", docId);
-  const userSnap = await getDoc(userRef);
-
-  if (userSnap.exists()) {
-    const prevStars = userSnap.data().stars || 0;
-    await updateDoc(userRef, { stars: prevStars + 1 });
-    console.log("⭐ Star added! Total:", prevStars + 1);
-  }
-};
-if (!docId) {
     return (
       <div className="text-center mt-10 text-red-600 font-bold">
         ❗ No child ID provided. Please login again.
@@ -140,7 +153,7 @@ if (!docId) {
             <DotLottieReact
               src="https://lottie.host/1d19163e-5c30-48d0-b0d4-efc53d2872b1/Ic3cCqMKrN.lottie"
               autoplay
-              loop  
+              loop
             />
           </div>
         </>
@@ -154,4 +167,3 @@ if (!docId) {
     </div>
   );
 }
-

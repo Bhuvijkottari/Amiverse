@@ -4,7 +4,10 @@ const levels = [
   { id: 1, title: 'Rainy Day Choice 🌧️' },
   { id: 2, title: 'Sharing Toys 🎁' },
   { id: 3, title: 'Crossing the Road 🚸' },
+   {id: 4, title: 'First Day of School 🎒'},
+ 
 ];
+
 
 export default function StoryTime() {
   const navigate = useNavigate();

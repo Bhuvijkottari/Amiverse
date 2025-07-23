@@ -3,12 +3,13 @@ import Lottie from 'lottie-react';
 import amiAnimation from '../assets/ami.json';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
-import { addReward } from "../utils/updateRewards";
 import { useLocation } from "react-router-dom";
+import { toast } from "react-hot-toast";
 
-export default function DailyMissions({  }) {
-
-  const lessons = [
+export default function DailyMissions() {
+  const location = useLocation();
+  const docId = location.state?.docId;
+const lessons = [
     {
       name: "Animals",
       items: [
@@ -160,14 +161,14 @@ export default function DailyMissions({  }) {
       ]
     }
   ];
+ 
 
-  const [lessonIndex, setLessonIndex] = useState(0);
-  const [currentItems, setCurrentItems] = useState([...lessons[0].items]);
-  const [currentTarget, setCurrentTarget] = useState(lessons[0].items[0]);
+  const [selectedLesson, setSelectedLesson] = useState(null);
+  const [currentItems, setCurrentItems] = useState([]);
+  const [currentTarget, setCurrentTarget] = useState(null);
   const [completed, setCompleted] = useState(false);
   const [feedback, setFeedback] = useState('');
-  const location = useLocation();
-  const docId = location.state?.docId;
+
   const speak = (text) => {
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
@@ -178,11 +179,11 @@ export default function DailyMissions({  }) {
   };
 
   useEffect(() => {
-    if (!completed) {
+    if (selectedLesson && !completed && currentTarget?.name) {
       speak(`Can you find the ${currentTarget.name}? Drag it to me!`);
       setFeedback('');
     }
-  }, [currentTarget, completed]);
+  }, [currentTarget, completed, selectedLesson]);
 
   const handleDrop = (item) => {
     if (item.name === currentTarget.name) {
@@ -195,46 +196,38 @@ export default function DailyMissions({  }) {
         }, 1500);
       } else {
         setCompleted(true);
-speak(`Hurray! You completed the ${lessons[lessonIndex].name} lesson!`);
-giveStarReward(); // pass it from the prop
-// 🎁 Add a star reward
-
-
-
+        speak(`Hurray! You completed the ${selectedLesson.name} lesson!`);
+        giveStarReward();
       }
     } else {
       setFeedback('❌ Try again!');
     }
   };
 
-  const goToNextLesson = () => {
-    if (lessonIndex < lessons.length - 1) {
-      const nextLesson = lessons[lessonIndex + 1];
-      setLessonIndex(lessonIndex + 1);
-      setCurrentItems([...nextLesson.items]);
-      setCurrentTarget(nextLesson.items[0]);
-      setCompleted(false);
-      setFeedback('');
+  const giveStarReward = async () => {
+    if (!docId) return;
+    try {
+      const userRef = doc(db, "users", docId);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const prevStars = userSnap.data().stars || 0;
+        await updateDoc(userRef, { stars: prevStars + 1 });
+        toast.success("⭐ 1 Star added to your rewards!");
+      }
+    } catch (error) {
+      console.error("Failed to update star reward:", error);
     }
   };
-  const giveStarReward = async () => {
+
+  const startLesson = (lesson) => {
+    setSelectedLesson(lesson);
+    setCurrentItems([...lesson.items]);
+    setCurrentTarget(lesson.items[0]);
+    setCompleted(false);
+    setFeedback('');
+  };
+
   if (!docId) {
-    console.warn("❗ No child ID provided. Please login again.");
-    return;
-  }
-
-  const userRef = doc(db, "users", docId);
-  const userSnap = await getDoc(userRef);
-
-  if (userSnap.exists()) {
-    const prevStars = userSnap.data().stars || 0;
-    await updateDoc(userRef, { stars: prevStars + 1 });
-     toast.success("⭐ 1 Star added to your rewards!");
-    console.log("⭐ Star added! Total:", prevStars + 1);
-  }
-};
-
- if (!docId) {
     return (
       <div className="text-center mt-10 text-red-600 font-bold">
         ❗ No child ID provided. Please login again.
@@ -244,74 +237,90 @@ giveStarReward(); // pass it from the prop
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-yellow-100 to-pink-100 flex flex-col items-center justify-center p-4 relative">
-      {/* Ami */}
       <div className="w-32 mb-4 relative z-10">
         <Lottie animationData={amiAnimation} loop />
-        <p>Doc ID: {docId}</p>
+        <p className="text-sm text-gray-600 mt-2">Doc ID: {docId}</p>
       </div>
 
-      {!completed && (
-        <div className="text-center mb-4">
-          <h2 className="text-xl font-bold text-purple-800">
-            Lesson: {lessons[lessonIndex].name}
-          </h2>
-          <p className="text-lg text-purple-700">
-            Find: {currentTarget.emoji} {currentTarget.name}
-          </p>
+      {!selectedLesson && (
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-purple-800 mb-4">Choose a Lesson</h2>
+          <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto">
+            {lessons.map((lesson) => (
+              <button
+                key={lesson.name}
+                onClick={() => startLesson(lesson)}
+                className="bg-purple-300 hover:bg-purple-400 text-white font-bold py-2 px-4 rounded-xl shadow-md"
+              >
+                {lesson.name}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Orbiting Emojis */}
-      <div className="relative w-80 h-80">
-        {currentItems.map((item, index) => {
-          const angle = (index / currentItems.length) * 2 * Math.PI;
-          const x = 120 * Math.cos(angle);
-          const y = 120 * Math.sin(angle);
-          return (
-            <div
-              key={item.name}
-              draggable={!completed}
-              onDragStart={(e) => e.dataTransfer.setData('text/plain', item.name)}
-              className="absolute text-4xl cursor-grab transition-transform hover:scale-125"
-              style={{ left: `calc(50% + ${x}px)`, top: `calc(50% + ${y}px)` }}
-            >
-              {item.emoji}
+      {selectedLesson && (
+        <>
+          {!completed && (
+            <div className="text-center mb-4">
+              <h2 className="text-xl font-bold text-purple-800">
+                Lesson: {selectedLesson.name}
+              </h2>
+              <p className="text-lg text-purple-700">
+                Find: {currentTarget?.emoji} {currentTarget?.name}
+              </p>
             </div>
-          );
-        })}
-      </div>
+          )}
 
-      {/* Drop Zone */}
-      {!completed && (
-        <div
-          className="mt-6 w-32 h-32 border-4 border-dashed border-purple-400 rounded-full flex items-center justify-center text-center"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            const name = e.dataTransfer.getData('text/plain');
-            const found = currentItems.find((i) => i.name === name);
-            if (found) handleDrop(found);
-          }}
-        >
-          <p className="text-purple-600">Drop Here!</p>
-        </div>
-      )}
+          <div className="relative w-80 h-80">
+            {currentItems.map((item, index) => {
+              const angle = (index / currentItems.length) * 2 * Math.PI;
+              const x = 120 * Math.cos(angle);
+              const y = 120 * Math.sin(angle);
+              return (
+                <div
+                  key={item.name}
+                  draggable={!completed}
+                  onDragStart={(e) => e.dataTransfer.setData('text/plain', item.name)}
+                  className="absolute text-4xl cursor-grab transition-transform hover:scale-125"
+                  style={{ left: `calc(50% + ${x}px)`, top: `calc(50% + ${y}px)` }}
+                >
+                  {item.emoji}
+                </div>
+              );
+            })}
+          </div>
 
-      {/* Feedback */}
-      {feedback && (
-        <p className="mt-4 text-lg text-green-700">{feedback}</p>
-      )}
+          {!completed && (
+            <div
+              className="mt-6 w-32 h-32 border-4 border-dashed border-purple-400 rounded-full flex items-center justify-center text-center"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                const name = e.dataTransfer.getData('text/plain');
+                const found = currentItems.find((i) => i.name === name);
+                if (found) handleDrop(found);
+              }}
+            >
+              <p className="text-purple-600">Drop Here!</p>
+            </div>
+          )}
 
-      {/* Completed */}
-      {completed && (
-        <div className="mt-6 text-center">
-          <h2 className="text-2xl font-bold text-purple-800">🎉 You finished the lesson!</h2>
-          <button
-            onClick={goToNextLesson}
-            className="mt-4 bg-purple-500 hover:bg-purple-600 text-white font-semibold px-4 py-2 rounded-full shadow"
-          >
-            ✅ Next Lesson
-          </button>
-        </div>
+          {feedback && (
+            <p className="mt-4 text-lg text-green-700">{feedback}</p>
+          )}
+
+          {completed && (
+            <div className="mt-6 text-center">
+              <h2 className="text-2xl font-bold text-purple-800">🎉 You finished the lesson!</h2>
+              <button
+                onClick={() => setSelectedLesson(null)}
+                className="mt-4 bg-purple-500 hover:bg-purple-600 text-white font-semibold px-4 py-2 rounded-full shadow"
+              >
+                🔁 Choose Another Lesson
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -2,6 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs, query, where, updateDoc, doc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  LineElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  Tooltip,
+  Title,
+  Legend,
+} from 'chart.js';
+
+ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Title, Legend);
 
 export default function ParentDashboard() {
   const [children, setChildren] = useState([]);
@@ -13,7 +26,28 @@ export default function ParentDashboard() {
       try {
         const q = query(collection(db, 'users'), where('parentPin', '==', storedPin));
         const querySnapshot = await getDocs(q);
-        const childList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const defaultFeatures = {
+          artMusic: true,
+          dailyMissions: true,
+          emotionGame: true,
+          repeat: true,
+          rewards: true,
+          routinePuzzle: false,
+          storyTime: true,
+          talkToToy: true,
+          voiceBuddy: true
+        };
+        const childList = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            features: {
+              ...defaultFeatures,
+              ...(data.features || {})
+            }
+          };
+        });
         setChildren(childList);
       } catch (error) {
         console.error('Error fetching children:', error.message);
@@ -25,8 +59,7 @@ export default function ParentDashboard() {
 
   const toggleFeature = async (childId, featureKey) => {
     const child = children.find(c => c.id === childId);
-    const currentFeatures = child.features || {};
-    const updated = { ...currentFeatures, [featureKey]: !currentFeatures[featureKey] };
+    const updated = { ...child.features, [featureKey]: !child.features[featureKey] };
     await updateDoc(doc(db, 'users', childId), { features: updated });
     setChildren(prev =>
       prev.map(c => (c.id === childId ? { ...c, features: updated } : c))
@@ -35,10 +68,14 @@ export default function ParentDashboard() {
 
   const toggleCamera = async (childId) => {
     const child = children.find(c => c.id === childId);
-    const newCam = !child.showCamera;
-    await updateDoc(doc(db, 'users', childId), { showCamera: newCam });
+    const newCam = !child.settings?.showCamera;
+    await updateDoc(doc(db, 'users', childId), {
+      settings: { ...child.settings, showCamera: newCam }
+    });
     setChildren(prev =>
-      prev.map(c => (c.id === childId ? { ...c, showCamera: newCam } : c))
+      prev.map(c =>
+        c.id === childId ? { ...c, settings: { ...c.settings, showCamera: newCam } } : c
+      )
     );
   };
 
@@ -66,110 +103,154 @@ export default function ParentDashboard() {
     }
   };
 
+  const generateRewardHistory = (stars = 0) => {
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const todayIndex = new Date().getDay();
+
+    return Array.from({ length: 5 }, (_, i) => {
+      const offset = 4 - i;
+      const dayIndex = (todayIndex - offset + 7) % 7;
+      const label = i === 4 ? 'Today' : daysOfWeek[dayIndex];
+      const value = Math.max(stars - (4 - i), 0);
+      return { day: label, value };
+    });
+  };
+
   const themeOptions = ['Jungle', 'Ocean', 'Space'];
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold text-purple-800 mb-6">👨‍👩‍👧 Parent Dashboard</h1>
+    <div className="p-6 bg-gradient-to-br from-violet-50 to-orange-100 min-h-screen">
+      <h1 className="text-4xl font-extrabold text-purple-900 mb-10 text-center">
+        👨‍👩‍👧 Parent Dashboard
+      </h1>
 
       {children.length === 0 && (
-        <p className="text-gray-600">No children found for your PIN.</p>
+        <p className="text-gray-600 text-center">No children found for your PIN.</p>
       )}
 
-      {children.map(child => (
-        <div key={child.id} className="bg-white rounded-xl shadow-md p-4 mb-6 border border-purple-300">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-xl font-semibold text-purple-700">{child.name}</h2>
-           <button
-  onClick={() =>
-    navigate("/home", {
-      state: {
-        name: childData?.name,
-        docId: childDocId, // ← pass doc ID here
-      },
-    })
-  }
-  className="mt-6 bg-purple-600 text-white px-6 py-2 rounded-lg shadow hover:bg-purple-700"
->
-  👁️ View Child Dashboard
-</button>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {children.map(child => {
+          const rewardHistory = generateRewardHistory(child.stars || 0);
+          const chartData = {
+            labels: rewardHistory.map(r => r.day),
+            datasets: [{
+              label: "⭐ Weekly Progress",
+              data: rewardHistory.map(r => r.value),
+              fill: true,
+              backgroundColor: "rgba(99, 102, 241, 0.1)",
+              borderColor: "rgba(99, 102, 241, 1)",
+              pointBackgroundColor: "rgba(99, 102, 241, 1)",
+              tension: 0.3,
+            }]
+          };
 
-          </div>
+          const chartOptions = {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              title: {
+                display: true,
+                text: "Weekly Star Progress",
+                font: { size: 14 },
+                color: "#4f46e5"
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1 },
+                grid: { color: "#e5e7eb" }
+              },
+              x: { grid: { display: false } }
+            }
+          };
 
-          {/* Theme Selector */}
-          <div className="mt-2 flex items-center gap-2">
-            <label className="text-sm text-gray-700 font-medium">🎨 Theme:</label>
-            <select
-              value={child.theme || 'Jungle'}
-              onChange={(e) => updateTheme(child.id, e.target.value)}
-              className="border border-purple-300 rounded px-2 py-1"
-            >
-              {themeOptions.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Screen Time Setter */}
-          <div className="mt-2 flex items-center gap-2">
-            <label className="text-sm text-gray-700 font-medium">⏱ Screen Time (min):</label>
-            <input
-              type="number"
-              min="0"
-              value={child.screenTime }
-              onChange={(e) => updateScreenTime(child.id, e.target.value)}
-              className="w-20 p-1 rounded border border-gray-300"
-            />
-            <button
-              onClick={() => resetScreenTime(child.id)}
-              className="ml-2 text-sm px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded border"
-            >
-              Reset to 60
-            </button>
-          </div>
-
-          {/* Camera Toggle */}
-          <div className="mt-3">
-            <label className="font-medium text-sm">📷 Show Camera View:</label>
-            <input
-              type="checkbox"
-              className="ml-2"
-              checked={child.settings.showCamera || false}
-              onChange={() => toggleCamera(child.id)}
-            />
-          </div>
-
-          {/* Feature Toggles */}
-          <div className="mt-3">
-            <h3 className="text-sm font-semibold mb-1">🧩 Features:</h3>
-            <div className="flex flex-wrap gap-2">
-              {Object.keys(child.features || {}).map(key => (
+          return (
+            <div key={child.id} className="bg-white rounded-2xl shadow-lg p-6 border border-purple-200">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-purple-700">{child.name}</h2>
                 <button
-                  key={key}
-                  onClick={() => toggleFeature(child.id, key)}
-                  className={`text-sm px-3 py-1 rounded border ${
-                    child.features[key]
-                      ? 'bg-green-200 border-green-400'
-                      : 'bg-red-200 border-red-400'
-                  }`}
+                  onClick={() =>
+                    navigate("/home", {
+                      state: {
+                        name: child.name,
+                        docId: child.id,
+                      },
+                    })
+                  }
+                  className="bg-purple-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-purple-700"
                 >
-                  {key} {child.features[key] ? '✅' : '❌'}
+                 
                 </button>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          {/* Progress Overview */}
-          <div className="mt-4">
-            <h3 className="font-semibold text-sm text-purple-700 mb-1">⭐ Progress Overview:</h3>
-            <ul className="text-sm text-gray-800 ml-4 list-disc space-y-1">
-              <li>🎤 Voice Buddy: {child.progress?.voiceBuddy || 0} stars</li>
-              <li>🧠 Emotion Game: {child.progress?.emotionGame || 0} stars</li>
-              <li>🧩 Routine Puzzle: {child.progress?.routinePuzzle || 0} stars</li>
-            </ul>
-          </div>
-        </div>
-      ))}
+              <p className="mb-2 text-indigo-600 font-semibold text-sm">
+                ⭐ Stars Earned: {child.stars || 0}
+              </p>
+
+              <div className="mb-4">
+                <Line data={chartData} options={chartOptions} />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">🎨 Theme:</label>
+                  <select
+                    value={child.theme || 'Jungle'}
+                    onChange={(e) => updateTheme(child.id, e.target.value)}
+                    className="border border-gray-300 rounded px-2 py-1"
+                  >
+                    {themeOptions.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">⏱ Screen Time:</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={child.screenTime}
+                    onChange={(e) => updateScreenTime(child.id, e.target.value)}
+                    className="w-20 p-1 rounded border border-gray-300"
+                  />
+                  <button
+                    onClick={() => resetScreenTime(child.id)}
+                    className="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300"
+                  >
+                    Reset
+                  </button>
+                </div>
+
+             
+
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-1">🧩 Feature Access:</h3>
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
+                    {Object.keys(child.features || {}).map(key => (
+                      <button
+                        key={key}
+                        onClick={() => toggleFeature(child.id, key)}
+                        className={`text-xs px-3 py-1 rounded border font-medium ${
+                          child.features[key]
+                            ? 'bg-green-100 border-green-400 text-green-800'
+                            : 'bg-red-100 border-red-400 text-red-800'
+                        }`}
+                      >
+                        {key} {child.features[key] ? '✅' : '❌'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <footer className="mt-10 text-center text-sm text-[#4B5563] font-medium bg-[#f3f4f7] py-4 rounded-md shadow-sm">
+  © {new Date().getFullYear()} <span className="text-[#2563EB] font-semibold">AmiVerse</span>. All rights reserved.
+</footer>
     </div>
   );
 }
