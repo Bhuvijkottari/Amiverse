@@ -27,12 +27,45 @@ const questions = [
   {
     id: 3,
     text: {
-      en: "Which one is a fruit?",
-      hi: "इनमें से फल कौन सा है?"
+      en: "Which one is your favorite?",
+      hi: "इनमें से कौन सा आपका पसंदीदा है?"
     },
     options: ["🍎", "🚗", "🧸", "👟"]
+  },
+  {
+    id: 4,
+    text: {
+      en: "What color do you like the most?",
+      hi: "आपको कौन सा रंग सबसे ज्यादा पसंद है?"
+    },
+    options: ["🔴 Red", "🟢 Green", "🔵 Blue", "🟡 Yellow"]
+  },
+  {
+    id: 5,
+    text: {
+      en: "Which animal do you like?",
+      hi: "आपको कौन सा जानवर पसंद है?"
+    },
+    options: ["🐶 Dog", "🐱 Cat", "🐘 Elephant", "🐦 Bird"]
+  },
+  {
+    id: 6,
+    text: {
+      en: "Which season do you enjoy?",
+      hi: "आपको कौन सा मौसम पसंद है?"
+    },
+    options: ["☀️ Summer", "🌧️ Rainy", "🍂 Autumn", "❄️ Winter"]
+  },
+  {
+    id: 7,
+    text: {
+      en: "How do you prefer to talk?",
+      hi: "आप किस तरीके से बात करना पसंद करते हैं?"
+    },
+    options: ["🗣️ Speaking", "✍️ Writing", "🖐️ Gestures", "📱 Using Device"]
   }
 ];
+
 
 export default function VoiceBuddy() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
