@@ -239,7 +239,7 @@ const lessons = [
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-yellow-100 to-pink-100 flex flex-col items-center justify-center p-4 relative">
       <div className="w-32 mb-4 relative z-10">
         <Lottie animationData={amiAnimation} loop />
-        <p className="text-sm text-gray-600 mt-2">Doc ID: {docId}</p>
+        <p className="text-sm text-gray-600 mt-2"></p>
       </div>
 
       {!selectedLesson && (
